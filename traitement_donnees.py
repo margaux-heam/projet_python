@@ -28,3 +28,15 @@ def norm(mydata) :
        for col in mydata.columns
        ]
 
+def accolade(text):
+    res=''
+    for a in text :
+        if a == "’":
+            res=res+"_"
+        else :
+            res=res+a
+    return res
+
+toto='aaaa’bb'
+toto=accolade(toto)
+print(toto)

@@ -13,10 +13,10 @@ from dataFrameUtil import *
 
 def getRevenus() -> pd.DataFrame:
     """
-    Lis la base de données "revenues" dans un DataFrame.
+    Lit la base de données "revenus" dans un DataFrame.
 
     Returns:
-        DataFrame: le contenu de "revenues" en renommant les colonnes
+        DataFrame: le contenu de "revenus" en renommant les colonnes
     """
     revenus = pd.read_csv("data/revenus.csv", sep=";")
     revenus.columns = (
@@ -36,7 +36,7 @@ def getIris(revenus: pd.DataFrame) -> gpd.GeoDataFrame:
             right_on="iris",
             how="left"
         )
-
+    
     iris = iris.merge(
         getPopulation(),
         left_on="code_iris",
@@ -176,10 +176,10 @@ def plotParcoursupMobilitesBoursiers(parcoursup: pd.DataFrame):
     plt.ylim(0, 35)
     plt.show()
 
-def updateIris(iris: pd.DataFrame, parcoursup: pd.DataFrame):
+def updateIris(iris: pd.DataFrame, parcoursup_total: pd.DataFrame) -> pd.DataFrame:
     # Nombre total de formations par IRIS
     total_form = (
-        parcoursup.groupby("code_iris")
+        parcoursup_total.groupby("code_iris")
         .size()
         .reset_index(name=NB_FORMATIONS)
     )
@@ -188,8 +188,9 @@ def updateIris(iris: pd.DataFrame, parcoursup: pd.DataFrame):
     iris = iris.merge(total_form, on="code_iris", how="left")
     iris[NB_FORMATIONS] = iris[NB_FORMATIONS].fillna(0).astype(int)
     iris[NB_FORMATIONS] = (iris[NB_FORMATIONS] > 0).astype(int)
+    return iris
 
-def printCarteFranceMetropolitaine(iris: pd.DataFrame, parcoursup: pd.DataFrame):
+def printCarteFranceMetropolitaine(iris: pd.DataFrame, parcoursup_total: pd.DataFrame):
     # =====================================================
     # 1) Préparer les IRIS – France métropolitaine uniquement
     # =====================================================
@@ -217,8 +218,8 @@ def printCarteFranceMetropolitaine(iris: pd.DataFrame, parcoursup: pd.DataFrame)
     # =====================================================
     metro_iris_codes = set(gdf_metro["code_iris"])
 
-    df_points_metro = parcoursup[
-        parcoursup["code_iris"].astype(str).isin(metro_iris_codes)
+    df_points_metro = parcoursup_total[
+        parcoursup_total["code_iris"].astype(str).isin(metro_iris_codes)
     ].dropna(subset=["latitude", "longitude"]).copy()
 
     print("Nombre de formations en France métropolitaine :", df_points_metro.shape[0])

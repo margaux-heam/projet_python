@@ -55,3 +55,5 @@ clusters_labels = ["tres_pauvre", "pauvre", "moyen", "riche", "tres_riche"]
 columns_to_add_to_parcoursup = ['code_iris', 'nom_iris', 'geometry', 'nom_commune', 'type_iris', "med", "rd", "ppsoc", "cluster_label", "pop", "pop1117", "pop1824", "pop6074", "pop75p", "pop15p_cs3", "pop15p_cs5", "pop15p_cs6", "pop_imm"]
 
 Q_list = ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10"]
+
+NB_FORMATIONS = "nb_formations"

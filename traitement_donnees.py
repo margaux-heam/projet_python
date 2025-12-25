@@ -244,15 +244,15 @@ def printCarteVille(
     center: tuple,
     zoom: int = 11
 ):
-    # 1) Filtrer le département
+    # Filtrer le département
     gdf = iris[iris["code_dept"] == code_dept].copy()
 
-    # 2) Rendre compatible JSON
+    # Rendre compatible JSON
     for col in gdf.columns:
         if gdf[col].dtype.name in ["interval", "category"]:
             gdf[col] = gdf[col].astype(str)
 
-    # 3) Palette clusters
+    # Palette clusters
     cluster_colors = {
         "tres_pauvre": "#b30000",
         "pauvre":      "#fc8d59",
@@ -270,13 +270,13 @@ def printCarteVille(
             "fillOpacity": 0.6,
         }
 
-    # 4) Filtrer les formations
+    # Filtrer les formations
     iris_codes = set(gdf["code_iris"].astype(str))
     df_points = parcoursup_total[
         parcoursup_total["code_iris"].astype(str).isin(iris_codes)
     ].dropna(subset=["latitude", "longitude"])
 
-    # 5) Carte
+    # Carte
     m = folium.Map(
         location=center,
         zoom_start=zoom,
@@ -288,7 +288,7 @@ def printCarteVille(
         zoomControl=False
     )
 
-    # 6) Polygones IRIS
+    # Polygones IRIS
     folium.GeoJson(
         gdf,
         name="Quartiers (IRIS)",
@@ -299,7 +299,7 @@ def printCarteVille(
         ),
     ).add_to(m)
 
-    # 7) Points formations (une seule couleur)
+    # Points formations (une seule couleur)
     for _, row in df_points.iterrows():
         folium.CircleMarker(
             location=[row["latitude"], row["longitude"]],
@@ -391,22 +391,29 @@ def plotFormationDemographie(
 
     plt.show()
 
-def constructModelFormation(iris: pd.DataFrame):
-    df_model = iris[[NB_FORMATIONS, "pop", "cluster_label", "type_iris_label"]].copy()
+def constructLogitModel(
+    df: pd.DataFrame,
+    y: str,
+    terms: list[str]
+) -> pd.DataFrame:
 
-    # Nettoyage : on enlève les lignes avec NA sur les variables du modèle
+    # Sous-ensemble des variables utiles
+    df_model = df[[y] + logit_variable].copy()
+
+    # Nettoyage
     df_model = df_model.dropna()
 
-    # Régression
-    logit_model = smf.logit(formula=f"{NB_FORMATIONS} ~ " + " + ".join(terms1), data=df_model)
-    res = logit_model.fit()
+    # Modèle logit
+    formula = f"{y} ~ " + " + ".join(terms)
+    res = smf.logit(formula=formula, data=df_model).fit()
 
-    # Afficher les résultats dont les odds ratio
+    # Table des résultats
     table = pd.DataFrame({
         "coef_logit": res.params,
         "odds_ratio": np.exp(res.params),
         "p_value": res.pvalues
     })
+
     return table
 
 def printCarteVilleSelect(
@@ -490,42 +497,6 @@ def printCarteVilleSelect(
     folium.LayerControl().add_to(m)
     return m
 
-def constructModelSelect1(iris: pd.DataFrame):
-    df_model = iris[[TRES_SELECT, "pop", "cluster_label", "type_iris_label"]].copy()
-
-    # Nettoyage : on enlève les lignes avec NA sur les variables du modèle
-    df_model = df_model.dropna()
-    
-    # Définition du modèle
-    logit_model = smf.logit(formula=f"{TRES_SELECT} ~ " + " + ".join(terms1), data=df_model)
-    res = logit_model.fit()
-
-    # Afficher les résultats dont les odds ratio
-    table = pd.DataFrame({
-        "coef_logit": res.params,
-        "odds_ratio": np.exp(res.params),
-        "p_value": res.pvalues
-    })
-    return table
-
-def constructModelSelect2(parcoursup_total: pd.DataFrame):
-    df_model = parcoursup_total[[TRES_SELECT, "pop", "cluster_label", "type_iris_label"]].copy()
-
-    # Nettoyage : on enlève les lignes avec NA sur les variables du modèle
-    df_model = df_model.dropna()
-    
-    # Définition du modèle
-    logit_model = smf.logit(formula=f"{TRES_SELECT} ~ " + " + ".join(terms1), data=df_model)
-    res = logit_model.fit()
-    
-    # Afficher les résultats dont les odds ratio
-    table = pd.DataFrame({
-        "coef_logit": res.params,
-        "odds_ratio": np.exp(res.params),
-        "p_value": res.pvalues
-    })
-    return table
-
 def plotBoursierQuartier(parcoursup_total: pd.DataFrame):
     moyennes = (
         parcoursup_total
@@ -544,20 +515,13 @@ def plotBoursierQuartier(parcoursup_total: pd.DataFrame):
     plt.ylim(0, 35)
     plt.show()
 
-def constructModelBoursier1(parcoursup_total: pd.DataFrame):
-    # Définition du modèle (régression linéaire)
-    model = smf.ols(
-        "admis_boursier ~ C(cluster_label) + C(selectivite) + pop",
-        data=parcoursup_total
-    ).fit()
-    return model
-
-def constructModelBoursier2(parcoursup_total: pd.DataFrame):
-    # Définition du modèle (régression linéaire)
-    model = smf.ols(
-        "admis_boursier ~ C(cluster_label) + C(selectivite) + pop + C(type_form, Treatment(reference='Licence'))",
-        data=parcoursup_total
-    ).fit()
+def constructModelBoursier(
+    df: pd.DataFrame,
+    terms: list[str],
+    y: str = "admis_boursier"
+):
+    formula = f"{y} ~ " + " + ".join(terms)
+    model = smf.ols(formula, data=df).fit()
     return model
 
 def printCarteTypeFormation(
@@ -567,10 +531,10 @@ def printCarteTypeFormation(
     center: tuple[float, float],
     zoom: int = 12
 ):
-    # 1) Filtrer la zone
+    # Filtrer la zone
     gdf = iris[iris["code_dept"].isin(deps)].copy()
 
-    # 2) Sécuriser les colonnes catégorielles / Interval (GeoDataFrame)
+    # Sécuriser les colonnes catégorielles / Interval (GeoDataFrame)
     for col in gdf.columns:
         if (
             pd.api.types.is_categorical_dtype(gdf[col])
@@ -578,7 +542,7 @@ def printCarteTypeFormation(
         ):
             gdf[col] = gdf[col].astype(str)
 
-    # 3) Sécuriser les colonnes catégorielles / Interval (points)
+    # Sécuriser les colonnes catégorielles / Interval (points)
     for col in parcoursup_total.columns:
         if (
             pd.api.types.is_categorical_dtype(parcoursup_total[col])
@@ -586,7 +550,7 @@ def printCarteTypeFormation(
         ):
             parcoursup_total[col] = parcoursup_total[col].astype(str)
 
-    # 4) Palette clusters
+    # Palette clusters
     cluster_colors = {
         "tres_pauvre": "#b30000",
         "pauvre":      "#fc8d59",
@@ -604,20 +568,20 @@ def printCarteTypeFormation(
             "fillOpacity": 0.6,
         }
 
-    # 5) Filtrer les formations dans les IRIS de la zone
+    # Filtrer les formations dans les IRIS de la zone
     iris_codes = set(gdf["code_iris"].astype(str).unique())
     df_points = parcoursup_total[
         parcoursup_total["code_iris"].astype(str).isin(iris_codes)
     ].dropna(subset=["latitude", "longitude"]).copy()
 
-    # 6) Palette type de formation
+    # Palette type de formation
     form_colors = {
         "BTS": "darkgreen",
         "CPGE / Grande Ecole": "darkred",
         "Autre": "darkblue"
     }
 
-    # 7) Carte
+    # Carte
     m = folium.Map(
         location=center,
         zoom_start=zoom,
@@ -629,7 +593,7 @@ def printCarteTypeFormation(
         zoomControl=False
     )
 
-    # 8) Polygones IRIS
+    # Polygones IRIS
     folium.GeoJson(
         gdf,
         name="Quartiers (IRIS)",
@@ -641,7 +605,7 @@ def printCarteTypeFormation(
         ),
     ).add_to(m)
 
-    # 9) Points formations
+    # Points formations
     for _, row in df_points.iterrows():
         folium.CircleMarker(
             location=[row["latitude"], row["longitude"]],

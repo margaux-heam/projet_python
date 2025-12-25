@@ -59,6 +59,10 @@ Q_list = ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10"]
 NB_FORMATIONS = "nb_formations"
 TRES_SELECT = "tres_select"
 
-terms1 = ["C(cluster_label, Treatment(reference='moyen'))", "C(type_iris_label, Treatment(reference='habitat'))", "pop"]
+logit_variable = ["pop", "cluster_label", "type_iris_label"]
+logit_terms = ["C(cluster_label, Treatment(reference='moyen'))", "C(type_iris_label, Treatment(reference='habitat'))", "pop"]
 
 ordre_clusters = ["tres_pauvre", "pauvre", "moyen", "riche", "tres_riche"]
+
+terms_boursier1 = ["C(cluster_label)", "C(selectivite)", "pop"]
+terms_boursier2 = ["C(cluster_label)", "C(selectivite)", "pop", "C(type_form, Treatment(reference='Licence'))"]

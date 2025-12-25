@@ -12,12 +12,6 @@ from shapely.geometry import Point
 from dataFrameUtil import *
 
 def getRevenus() -> pd.DataFrame:
-    """
-    Lit la base de données "revenus" dans un DataFrame.
-
-    Returns:
-        DataFrame: le contenu de "revenus" en renommant les colonnes
-    """
     revenus = pd.read_csv("data/revenus.csv", sep=";")
     revenus.columns = (
         revenus.columns

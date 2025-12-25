@@ -52,8 +52,16 @@ variables_to_analyze_in_clusters = ["tp60", "med", "q1", "q3", "rd", "gi", "pact
 
 clusters_labels = ["tres_pauvre", "pauvre", "moyen", "riche", "tres_riche"]
 
-columns_to_add_to_parcoursup = ['code_iris', 'nom_iris', 'geometry', 'nom_commune', 'type_iris', "med", "rd", "ppsoc", "cluster_label", "pop", "pop1117", "pop1824", "pop6074", "pop75p", "pop15p_cs3", "pop15p_cs5", "pop15p_cs6", "pop_imm"]
+columns_to_add_to_parcoursup = ['code_iris', 'nom_iris', 'geometry', 'nom_commune', 'type_iris', 'type_iris_label', "med", "rd", "ppsoc", "cluster_label", "pop", "pop1117", "pop1824", "pop6074", "pop75p", "pop15p_cs3", "pop15p_cs5", "pop15p_cs6", "pop_imm"]
 
 Q_list = ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10"]
 
 NB_FORMATIONS = "nb_formations"
+TRES_SELECT = "tres_select"
+
+terms1 = ["C(cluster_label, Treatment(reference='moyen'))", "C(type_iris_label, Treatment(reference='habitat'))", "pop"]
+
+ordre_clusters = ["tres_pauvre", "pauvre", "moyen", "riche", "tres_riche"]
+
+idf_deps = ["75"]
+lille_deps = ["59"]

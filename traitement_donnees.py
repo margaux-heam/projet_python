@@ -359,55 +359,36 @@ def printCarteFranceMetropolitaine(iris: pd.DataFrame, parcoursup_total: pd.Data
     folium.LayerControl().add_to(m)
     return m
 
-def plotFormationPopulation(iris: pd.DataFrame):
+def plotFormationDemographie(
+    iris: pd.DataFrame,
+    bin_col: str,
+    value_col: str,
+    xlabel: str,
+    ylabel: str,
+    title: str | None = None,
+    figsize=(10, 5),
+    grid: bool = True
+):
     prop = (
         iris
-        .groupby("pop_bin")[NB_FORMATIONS]
+        .groupby(bin_col)[value_col]
         .mean()
         .reset_index()
     )
 
-    prop["bin_center"] = prop["pop_bin"].apply(lambda x: x.mid)
+    prop["bin_center"] = prop[bin_col].apply(lambda x: x.mid)
 
-    plt.figure(figsize=(10,5))
-    plt.plot(prop["bin_center"], prop[NB_FORMATIONS], marker="o")
-    plt.xlabel("Nombre d'habitants")
-    plt.ylabel("Proportion de formations")
+    plt.figure(figsize=figsize)
+    plt.plot(prop["bin_center"], prop[value_col], marker="o")
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
 
-def plotFormation1824(iris: pd.DataFrame):
-    prop = (
-        iris
-        .groupby("part1824_bin")[NB_FORMATIONS]
-        .mean()
-        .reset_index()
-    )
+    if title:
+        plt.title(title)
 
-    prop["bin_center"] = prop["part1824_bin"].apply(lambda x: x.mid)
+    if grid:
+        plt.grid(True)
 
-    plt.figure(figsize=(10,5))
-    plt.plot(prop["bin_center"], prop[NB_FORMATIONS], marker="o")
-    plt.xlabel("Part des 18-24 ans (%)")
-    plt.ylabel("Probabilité d'avoir une formations")
-    plt.title("Probabité d'avoir une formation selon la part des 18-24 ans")
-    plt.grid(True)
-    plt.show()
-
-def plotFormation1117(iris: pd.DataFrame):
-    prop = (
-        iris
-        .groupby("part1117_bin")[NB_FORMATIONS]
-        .mean()
-        .reset_index()
-    )
-
-    prop["bin_center"] = prop["part1117_bin"].apply(lambda x: x.mid)
-
-    plt.figure(figsize=(10,5))
-    plt.plot(prop["bin_center"], prop[NB_FORMATIONS], marker="o")
-    plt.xlabel("Part des 11–17 ans (%)")
-    plt.ylabel("Proportion de formations")
-    plt.title("Proportion de formations selon la part des 11–17 ans")
-    plt.grid(True)
     plt.show()
 
 def constructModelFormation(iris: pd.DataFrame):
@@ -508,24 +489,6 @@ def printCarteVilleSelect(
 
     folium.LayerControl().add_to(m)
     return m
-
-def plotFormationSelectPopulation(iris: pd.DataFrame):
-    prop = (
-        iris
-        .groupby("pop_bin")[TRES_SELECT]
-        .mean()
-        .reset_index()
-    )
-
-    prop["bin_center"] = prop["pop_bin"].apply(lambda x: x.mid)
-
-    plt.figure(figsize=(10,5))
-    plt.plot(prop["bin_center"], prop[TRES_SELECT], marker="o")
-    plt.xlabel("Nombre d'habitants")
-    plt.ylabel("Proportion de formations sélectives")
-    plt.title("Proportion de formations sélectives selon le nombre d'habitants du quartier")
-    plt.grid(True)
-    plt.show()
 
 def constructModelSelect1(iris: pd.DataFrame):
     df_model = iris[[TRES_SELECT, "pop", "cluster_label", "type_iris_label"]].copy()

@@ -62,6 +62,3 @@ TRES_SELECT = "tres_select"
 terms1 = ["C(cluster_label, Treatment(reference='moyen'))", "C(type_iris_label, Treatment(reference='habitat'))", "pop"]
 
 ordre_clusters = ["tres_pauvre", "pauvre", "moyen", "riche", "tres_riche"]
-
-idf_deps = ["75"]
-lille_deps = ["59"]

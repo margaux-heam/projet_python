@@ -94,13 +94,18 @@ def getPopulation() -> pd.DataFrame:
     return population
 
 def getParcoursup(iris: gpd.GeoDataFrame) -> pd.DataFrame:
+    # ouverture du fichier
     parcoursup = pd.read_csv("data/parcoursup.csv", sep=";")
+    # changer les noms de colonnes et garder seulement les colonnes utiles
     parcoursup = parcoursup.rename(columns=column_mapping_parcoursup)
     parcoursup = parcoursup[columns_to_keep_parcoursup]
+
+    # préparation des coordonnées pour faire le merge avec les iris
     parcoursup[['latitude', 'longitude']] = parcoursup['coord_gps'].str.split(',', expand=True)
     parcoursup['latitude'] = parcoursup['latitude'].astype(float)
     parcoursup['longitude'] = parcoursup['longitude'].astype(float)
 
+    # fusion de la base parcoursup avec la base des iris
     parcoursup_total = gpd.sjoin(
             gpd.GeoDataFrame(
                 parcoursup,
@@ -112,6 +117,7 @@ def getParcoursup(iris: gpd.GeoDataFrame) -> pd.DataFrame:
             predicate="within"
         )
 
+    # créer des colonnes sur la part des élèves qui viennent de la même académie que la formation
     parcoursup_total["part_memeac"] = parcoursup_total["nb_memeac"] / parcoursup_total["nb_etud"]
     parcoursup_total["part_memeac2"] = parcoursup_total["nb_memeac2"] / parcoursup_total["nb_etud"]
 
@@ -157,9 +163,7 @@ def getRevenusCah(revenus: pd.DataFrame) -> pd.DataFrame:
     # imputation des valeurs manquantes
     for col in rev_cah.columns:
         rev_cah[col] = rev_cah[col].fillna(rev_cah[col].median())
-
-    # La normalisation transforme les données pour que chaque colonne ait moyenne 0 et écart type 1, ce qui évite qu’une variable domine les autres et permet des analyses plus fiables.
-    
+    # normalisation des variables
     return StandardScaler().fit_transform(rev_cah)
 
 def doCAH(rev_cah: pd.DataFrame):
@@ -170,11 +174,9 @@ def plotDendrogramme(cah):
     dendrogram(cah, truncate_mode="level", p=5)
     plt.title("Dendrogramme CAH")
     plt.show()
-    # La méthode de Ward est utilisée pour minimiser la variance à l’intérieur des clusters.
 
 def plotCoude(cah):
     last_rev = cah[:, 2][::-1]
-
     plt.figure(figsize=(10, 5))
     plt.plot(range(1, 16), last_rev[:15], marker='o')
     plt.xlabel("Nombre de clusters")
@@ -235,9 +237,83 @@ def updateIris(iris: pd.DataFrame, parcoursup_total: pd.DataFrame) -> pd.DataFra
     iris[TRES_SELECT] = (iris[TRES_SELECT] > 0).astype(int)
     return iris
 
+def printCarteVille(
+    iris: pd.DataFrame,
+    parcoursup_total: pd.DataFrame,
+    code_dept: str,
+    center: tuple,
+    zoom: int = 11
+):
+    # 1) Filtrer le département
+    gdf = iris[iris["code_dept"] == code_dept].copy()
+
+    # 2) Rendre compatible JSON
+    for col in gdf.columns:
+        if gdf[col].dtype.name in ["interval", "category"]:
+            gdf[col] = gdf[col].astype(str)
+
+    # 3) Palette clusters
+    cluster_colors = {
+        "tres_pauvre": "#b30000",
+        "pauvre":      "#fc8d59",
+        "moyen":       "#fee08b",
+        "riche":       "#91bfdb",
+        "tres_riche":  "#4575b4",
+    }
+
+    def style_cluster(feature):
+        label = feature["properties"].get("cluster_label")
+        return {
+            "fillColor": cluster_colors.get(label, "#cccccc"),
+            "color": "black",
+            "weight": 0.3,
+            "fillOpacity": 0.6,
+        }
+
+    # 4) Filtrer les formations
+    iris_codes = set(gdf["code_iris"].astype(str))
+    df_points = parcoursup_total[
+        parcoursup_total["code_iris"].astype(str).isin(iris_codes)
+    ].dropna(subset=["latitude", "longitude"])
+
+    # 5) Carte
+    m = folium.Map(
+        location=center,
+        zoom_start=zoom,
+        max_zoom=zoom,
+        min_zoom=zoom,
+        dragging=False,
+        scrollWheelZoom=False,
+        doubleClickZoom=False,
+        zoomControl=False
+    )
+
+    # 6) Polygones IRIS
+    folium.GeoJson(
+        gdf,
+        name="Quartiers (IRIS)",
+        style_function=style_cluster,
+        tooltip=folium.GeoJsonTooltip(
+            fields=["nom_iris", "nom_commune", "cluster_label"],
+            aliases=["IRIS", "Commune", "Type de quartier"],
+        ),
+    ).add_to(m)
+
+    # 7) Points formations (une seule couleur)
+    for _, row in df_points.iterrows():
+        folium.CircleMarker(
+            location=[row["latitude"], row["longitude"]],
+            radius=2,
+            color="red",
+            fill=True,
+            fill_opacity=0.8,
+        ).add_to(m)
+
+    return m
+
+
 def printCarteFranceMetropolitaine(iris: pd.DataFrame, parcoursup_total: pd.DataFrame):
     # Préparer les IRIS – France métropolitaine uniquement
-
     deps_metro = (
         [f"{i:02d}" for i in range(1, 96)]
         + ["2A", "2B"]
@@ -256,11 +332,8 @@ def printCarteFranceMetropolitaine(iris: pd.DataFrame, parcoursup_total: pd.Data
     df_points_metro = parcoursup_total[
         parcoursup_total["code_iris"].astype(str).isin(metro_iris_codes)
     ].dropna(subset=["latitude", "longitude"]).copy()
-
-    print("Nombre de formations en France métropolitaine :", df_points_metro.shape[0])
     
     # Créer la carte – France entière
-
     m = folium.Map(
         location=[46.6, 2.5],  # centre France
         zoom_start=6,
@@ -343,8 +416,11 @@ def constructModelFormation(iris: pd.DataFrame):
     # Nettoyage : on enlève les lignes avec NA sur les variables du modèle
     df_model = df_model.dropna()
 
+    # Régression
     logit_model = smf.logit(formula=f"{NB_FORMATIONS} ~ " + " + ".join(terms1), data=df_model)
     res = logit_model.fit()
+
+    # Afficher les résultats dont les odds ratio
     table = pd.DataFrame({
         "coef_logit": res.params,
         "odds_ratio": np.exp(res.params),
@@ -352,17 +428,24 @@ def constructModelFormation(iris: pd.DataFrame):
     })
     return table
 
-def printCarteParis1(iris: pd.DataFrame, parcoursup_total : pd.DataFrame):
+def printCarteVilleSelect(
+    iris: pd.DataFrame,
+    parcoursup_total: pd.DataFrame,
+    code_depts: list[str],
+    center: tuple[float, float],
+    zoom_start: int = 12,
+    min_zoom: int | None = None,
+    max_zoom: int | None = None
+):
+    # Filtrer la zone
+    gdf = iris[iris["code_dept"].isin(code_depts)].copy()
 
-    # 2) Filtrer uniquement Paris (75)
-    gdf_idf = iris[iris["code_dept"].isin(idf_deps)].copy()
-    print("Nombre d'IRIS en région parisienne :", gdf_idf.shape[0])
+    # Préparation JSON
+    for col in gdf.columns:
+        if gdf[col].dtype.name in ["interval", "category"]:
+            gdf[col] = gdf[col].astype(str)
 
-    for col in gdf_idf.columns:
-        if gdf_idf[col].dtype.name in ["interval", "category"]:
-            gdf_idf[col] = gdf_idf[col].astype(str)
-
-    # 3) Palette de couleurs pour les types de quartiers (clusters)
+    # Palette clusters
     cluster_colors = {
         "tres_pauvre": "#b30000",
         "pauvre":      "#fc8d59",
@@ -373,53 +456,48 @@ def printCarteParis1(iris: pd.DataFrame, parcoursup_total : pd.DataFrame):
 
     def style_cluster(feature):
         label = feature["properties"].get("cluster_label")
-        color = cluster_colors.get(label, "#cccccc")  # gris si NaN
         return {
-            "fillColor": color,
+            "fillColor": cluster_colors.get(label, "#cccccc"),
             "color": "black",
             "weight": 0.3,
             "fillOpacity": 0.6,
         }
 
-    # 4) Filtrer les formations qui sont dans un IRIS IDF
-    idf_iris_codes = set(gdf_idf["code_iris"].astype(str).unique())
-    df_points_idf = parcoursup_total[
-        parcoursup_total["code_iris"].astype(str).isin(idf_iris_codes)
+    # Filtrer les formations
+    iris_codes = set(gdf["code_iris"].astype(str))
+    df_points = parcoursup_total[
+        parcoursup_total["code_iris"].astype(str).isin(iris_codes)
     ].dropna(subset=["latitude", "longitude"]).copy()
 
-    # 4b) Créer la colonne tres_select
-    df_points_idf[TRES_SELECT] = df_points_idf["taux_acces"] < 50
-    df_points_idf[TRES_SELECT] = df_points_idf[TRES_SELECT].astype(bool)
+    # Variable très sélective
+    df_points[TRES_SELECT] = (df_points["taux_acces"] < 50)
 
-    print("Nombre de formations en IDF :", df_points_idf.shape[0])
-
-    # 5) Créer une carte centrée sur Paris
+    # Carte
     m = folium.Map(
-        location=[48.8566, 2.3522],
-        zoom_start=12,
-        max_zoom=12,
-        min_zoom=12,
+        location=center,
+        zoom_start=zoom_start,
+        min_zoom=min_zoom or zoom_start,
+        max_zoom=max_zoom or zoom_start,
         dragging=False,
         scrollWheelZoom=False,
         doubleClickZoom=False,
         zoomControl=False
     )
 
-    # 6) Ajouter les polygones IRIS colorés selon le type de quartier
+    # Polygones IRIS
     folium.GeoJson(
-        gdf_idf,
+        gdf,
         name="Quartiers (IRIS)",
         style_function=style_cluster,
         tooltip=folium.GeoJsonTooltip(
             fields=["nom_iris", "nom_commune", "cluster_label"],
             aliases=["IRIS", "Commune", "Type de quartier"],
-            localize=True
         ),
     ).add_to(m)
 
-    # 7) Ajouter les formations en points
-    for _, row in df_points_idf.iterrows():
-        color = "darkred" if row["tres_select"] else "red"
+    # Points formations
+    for _, row in df_points.iterrows():
+        color = "darkred" if row[TRES_SELECT] else "red"
         folium.CircleMarker(
             location=[row["latitude"], row["longitude"]],
             radius=2,
@@ -428,89 +506,6 @@ def printCarteParis1(iris: pd.DataFrame, parcoursup_total : pd.DataFrame):
             fill_opacity=0.8,
         ).add_to(m)
 
-    # 8) Ajouter le LayerControl
-    folium.LayerControl().add_to(m)
-
-    return m
-
-def printCarteStrasbourg(iris: pd.DataFrame, parcoursup_total: pd.DataFrame):
-
-    # 2) Filtrer uniquement Strasbourg (67)
-    idf_deps = ["67"]
-    gdf_stras = iris[iris["code_dept"].isin(idf_deps)].copy()
-    print("Nombre d'IRIS dans le Bas-Rhin :", gdf_stras.shape[0])
-
-    for col in gdf_stras.columns:
-        if gdf_stras[col].dtype.name in ["interval", "category"]:
-            gdf_stras[col] = gdf_stras[col].astype(str)
-
-    # 3) Palette de couleurs pour les types de quartiers (clusters)
-    cluster_colors = {
-        "tres_pauvre": "#b30000",
-        "pauvre":      "#fc8d59",
-        "moyen":       "#fee08b",
-        "riche":       "#91bfdb",
-        "tres_riche":  "#4575b4",
-    }
-
-    def style_cluster(feature):
-        label = feature["properties"].get("cluster_label")
-        color = cluster_colors.get(label, "#cccccc")  # gris si NaN
-        return {
-            "fillColor": color,
-            "color": "black",
-            "weight": 0.3,
-            "fillOpacity": 0.6,
-        }
-
-    # 4) Filtrer les formations qui sont dans un IRIS IDF
-    stras_iris_codes = set(gdf_stras["code_iris"].astype(str).unique())
-    df_points_stras = parcoursup_total[
-        parcoursup_total["code_iris"].astype(str).isin(stras_iris_codes)
-    ].dropna(subset=["latitude", "longitude"]).copy()
-
-    # 4b) Créer la colonne tres_select
-    df_points_stras[TRES_SELECT] = df_points_stras["taux_acces"] < 50
-    df_points_stras[TRES_SELECT] = df_points_stras[TRES_SELECT].astype(bool)
-
-    print("Nombre de formations dans le 67 :", df_points_stras.shape[0])
-
-    # 5) Créer une carte centrée sur Strasbourg
-    m = folium.Map(
-        location=[48.583, 7.745],
-        zoom_start=12,
-        max_zoom=13,
-        min_zoom=12,
-        dragging=False,
-        scrollWheelZoom=False,
-        doubleClickZoom=False,
-        zoomControl=False
-    )
-
-    # 6) Ajouter les polygones IRIS colorés selon le type de quartier
-    folium.GeoJson(
-        gdf_stras,
-        name="Quartiers (IRIS)",
-        style_function=style_cluster,
-        tooltip=folium.GeoJsonTooltip(
-            fields=["nom_iris", "nom_commune", "cluster_label"],
-            aliases=["IRIS", "Commune", "Type de quartier"],
-            localize=True
-        ),
-    ).add_to(m)
-
-    # 7) Ajouter les formations en points
-    for _, row in df_points_stras.iterrows():
-        color = "darkred" if row["tres_select"] else "red"
-        folium.CircleMarker(
-            location=[row["latitude"], row["longitude"]],
-            radius=2,
-            color=color,
-            fill=True,
-            fill_opacity=0.8,
-        ).add_to(m)
-
-    # 8) Ajouter le LayerControl
     folium.LayerControl().add_to(m)
     return m
 
@@ -538,8 +533,11 @@ def constructModelSelect1(iris: pd.DataFrame):
     # Nettoyage : on enlève les lignes avec NA sur les variables du modèle
     df_model = df_model.dropna()
     
+    # Définition du modèle
     logit_model = smf.logit(formula=f"{TRES_SELECT} ~ " + " + ".join(terms1), data=df_model)
     res = logit_model.fit()
+
+    # Afficher les résultats dont les odds ratio
     table = pd.DataFrame({
         "coef_logit": res.params,
         "odds_ratio": np.exp(res.params),
@@ -553,8 +551,11 @@ def constructModelSelect2(parcoursup_total: pd.DataFrame):
     # Nettoyage : on enlève les lignes avec NA sur les variables du modèle
     df_model = df_model.dropna()
     
+    # Définition du modèle
     logit_model = smf.logit(formula=f"{TRES_SELECT} ~ " + " + ".join(terms1), data=df_model)
     res = logit_model.fit()
+    
+    # Afficher les résultats dont les odds ratio
     table = pd.DataFrame({
         "coef_logit": res.params,
         "odds_ratio": np.exp(res.params),
@@ -581,6 +582,7 @@ def plotBoursierQuartier(parcoursup_total: pd.DataFrame):
     plt.show()
 
 def constructModelBoursier1(parcoursup_total: pd.DataFrame):
+    # Définition du modèle (régression linéaire)
     model = smf.ols(
         "admis_boursier ~ C(cluster_label) + C(selectivite) + pop",
         data=parcoursup_total
@@ -588,26 +590,40 @@ def constructModelBoursier1(parcoursup_total: pd.DataFrame):
     return model
 
 def constructModelBoursier2(parcoursup_total: pd.DataFrame):
+    # Définition du modèle (régression linéaire)
     model = smf.ols(
         "admis_boursier ~ C(cluster_label) + C(selectivite) + pop + C(type_form, Treatment(reference='Licence'))",
         data=parcoursup_total
     ).fit()
     return model
 
-def printCarteParis2(iris: pd.DataFrame, parcoursup_total: pd.DataFrame):
-    # Filtrer uniquement Paris (75)
-    gdf_idf = iris[iris["code_dept"].isin(idf_deps)].copy()
+def printCarteTypeFormation(
+    iris: pd.DataFrame,
+    parcoursup_total: pd.DataFrame,
+    deps: list[str],
+    center: tuple[float, float],
+    zoom: int = 12
+):
+    # 1) Filtrer la zone
+    gdf = iris[iris["code_dept"].isin(deps)].copy()
 
-    # Sécuriser les colonnes catégorielles / Interval
-    for col in gdf_idf.columns:
-        if pd.api.types.is_categorical_dtype(gdf_idf[col]) or pd.api.types.is_interval_dtype(gdf_idf[col]):
-            gdf_idf[col] = gdf_idf[col].astype(str)
+    # 2) Sécuriser les colonnes catégorielles / Interval (GeoDataFrame)
+    for col in gdf.columns:
+        if (
+            pd.api.types.is_categorical_dtype(gdf[col])
+            or pd.api.types.is_interval_dtype(gdf[col])
+        ):
+            gdf[col] = gdf[col].astype(str)
 
+    # 3) Sécuriser les colonnes catégorielles / Interval (points)
     for col in parcoursup_total.columns:
-        if pd.api.types.is_categorical_dtype(parcoursup_total[col]) or pd.api.types.is_interval_dtype(parcoursup_total[col]):
+        if (
+            pd.api.types.is_categorical_dtype(parcoursup_total[col])
+            or pd.api.types.is_interval_dtype(parcoursup_total[col])
+        ):
             parcoursup_total[col] = parcoursup_total[col].astype(str)
 
-    # Palette de couleurs pour les types de quartiers (clusters)
+    # 4) Palette clusters
     cluster_colors = {
         "tres_pauvre": "#b30000",
         "pauvre":      "#fc8d59",
@@ -618,42 +634,41 @@ def printCarteParis2(iris: pd.DataFrame, parcoursup_total: pd.DataFrame):
 
     def style_cluster(feature):
         label = feature["properties"].get("cluster_label")
-        color = cluster_colors.get(label, "#cccccc")  # gris si NaN
         return {
-            "fillColor": color,
+            "fillColor": cluster_colors.get(label, "#cccccc"),
             "color": "black",
             "weight": 0.3,
             "fillOpacity": 0.6,
         }
 
-    # Filtrer les formations qui sont dans un IRIS IDF
-    idf_iris_codes = set(gdf_idf["code_iris"].astype(str).unique())
-    df_points_idf = parcoursup_total[
-        parcoursup_total["code_iris"].astype(str).isin(idf_iris_codes)
+    # 5) Filtrer les formations dans les IRIS de la zone
+    iris_codes = set(gdf["code_iris"].astype(str).unique())
+    df_points = parcoursup_total[
+        parcoursup_total["code_iris"].astype(str).isin(iris_codes)
     ].dropna(subset=["latitude", "longitude"]).copy()
 
-    # Palette de couleurs pour type_form_agg
+    # 6) Palette type de formation
     form_colors = {
         "BTS": "darkgreen",
         "CPGE / Grande Ecole": "darkred",
         "Autre": "darkblue"
     }
 
-    # Créer la carte centrée sur Paris
+    # 7) Carte
     m = folium.Map(
-        location=[48.8566, 2.3522],
-        zoom_start=12,
-        max_zoom=12,
-        min_zoom=12,
+        location=center,
+        zoom_start=zoom,
+        min_zoom=zoom,
+        max_zoom=zoom,
         dragging=False,
         scrollWheelZoom=False,
         doubleClickZoom=False,
         zoomControl=False
     )
 
-    # Ajouter les polygones IRIS
+    # 8) Polygones IRIS
     folium.GeoJson(
-        gdf_idf,
+        gdf,
         name="Quartiers (IRIS)",
         style_function=style_cluster,
         tooltip=folium.GeoJsonTooltip(
@@ -663,104 +678,16 @@ def printCarteParis2(iris: pd.DataFrame, parcoursup_total: pd.DataFrame):
         ),
     ).add_to(m)
 
-    # Ajouter les points des formations
-    for _, row in df_points_idf.iterrows():
-        color = form_colors.get(row["type_form_agg"], "black")
+    # 9) Points formations
+    for _, row in df_points.iterrows():
         folium.CircleMarker(
             location=[row["latitude"], row["longitude"]],
             radius=2,
-            color=color,
+            color=form_colors.get(row["type_form_agg"], "black"),
             fill=True,
             fill_opacity=0.8,
         ).add_to(m)
 
-    # Ajouter LayerControl
     folium.LayerControl().add_to(m)
-
-    return m
-
-def printCarteLille(iris: pd.DataFrame, parcoursup_total: pd.DataFrame):
-    # Filtrer uniquement Lille (59)
-    gdf_lille = iris[iris["code_dept"].isin(lille_deps)].copy()
-
-    # Sécuriser les colonnes catégorielles / Interval
-    for col in gdf_lille.columns:
-        if pd.api.types.is_categorical_dtype(gdf_lille[col]) or pd.api.types.is_interval_dtype(gdf_lille[col]):
-            gdf_lille[col] = gdf_lille[col].astype(str)
-
-    for col in parcoursup_total.columns:
-        if pd.api.types.is_categorical_dtype(parcoursup_total[col]) or pd.api.types.is_interval_dtype(parcoursup_total[col]):
-            parcoursup_total[col] = parcoursup_total[col].astype(str)
-
-    # Palette de couleurs pour les types de quartiers (clusters)
-    cluster_colors = {
-        "tres_pauvre": "#b30000",
-        "pauvre":      "#fc8d59",
-        "moyen":       "#fee08b",
-        "riche":       "#91bfdb",
-        "tres_riche":  "#4575b4",
-    }
-
-    def style_cluster(feature):
-        label = feature["properties"].get("cluster_label")
-        color = cluster_colors.get(label, "#cccccc")  # gris si NaN
-        return {
-            "fillColor": color,
-            "color": "black",
-            "weight": 0.3,
-            "fillOpacity": 0.6,
-        }
-
-    # Filtrer les formations qui sont dans un IRIS IDF
-    lille_iris_codes = set(gdf_lille["code_iris"].astype(str).unique())
-    df_points_lille = parcoursup_total[
-        parcoursup_total["code_iris"].astype(str).isin(lille_iris_codes)
-    ].dropna(subset=["latitude", "longitude"]).copy()
-
-    # Palette de couleurs pour type_form_agg
-    form_colors = {
-        "BTS": "darkgreen",
-        "CPGE / Grande Ecole": "darkred",
-        "Autre": "darkblue"
-    }
-
-    # Créer la carte centrée sur Lille
-    m = folium.Map(
-        location=[50.632, 3.057],
-        zoom_start=12,
-        max_zoom=12,
-        min_zoom=12,
-        dragging=False,
-        scrollWheelZoom=False,
-        doubleClickZoom=False,
-        zoomControl=False
-    )
-
-    # Ajouter les polygones IRIS
-    folium.GeoJson(
-        gdf_lille,
-        name="Quartiers (IRIS)",
-        style_function=style_cluster,
-        tooltip=folium.GeoJsonTooltip(
-            fields=["nom_iris", "nom_commune", "cluster_label"],
-            aliases=["IRIS", "Commune", "Type de quartier"],
-            localize=True
-        ),
-    ).add_to(m)
-
-    # Ajouter les points des formations
-    for _, row in df_points_lille.iterrows():
-        color = form_colors.get(row["type_form_agg"], "black")
-        folium.CircleMarker(
-            location=[row["latitude"], row["longitude"]],
-            radius=2,
-            color=color,
-            fill=True,
-            fill_opacity=0.8,
-        ).add_to(m)
-
-    # Ajouter LayerControl
-    folium.LayerControl().add_to(m)
-
     return m
 

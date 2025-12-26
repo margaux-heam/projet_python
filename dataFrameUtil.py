@@ -56,7 +56,7 @@ columns_to_add_to_parcoursup = ['code_iris', 'nom_iris', 'geometry', 'nom_commun
 
 Q_list = ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10"]
 
-NB_FORMATIONS = "nb_formations"
+NB_FORMATIONS = "formation"
 TRES_SELECT = "tres_select"
 
 logit_variable = ["pop", "cluster_label", "type_iris_label"]

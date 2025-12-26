@@ -13,6 +13,8 @@ from dataFrameUtil import *
 
 def getRevenus() -> pd.DataFrame:
     revenus = pd.read_csv("data/revenus.csv", sep=";")
+
+    # simplification du nom des variables : retirer les préfixes et suffixes communs à toutes les variables
     revenus.columns = (
         revenus.columns
         .str.replace("^DISP_", "", regex=True)
@@ -23,7 +25,11 @@ def getRevenus() -> pd.DataFrame:
 
 def getIris(revenus: pd.DataFrame) -> gpd.GeoDataFrame:
     iris = gpd.read_file("data/contours-iris-pe.gpkg")
+
+    # associer le nom des différents types d'iris selon leur encodage
     iris["type_iris_label"] = iris["type_iris"].map(column_mapping_iris)
+    
+    # fusion de la base "iris" (données géographiques des IRIS) avec la base "revenus"
     iris = iris.merge(
             revenus,
             left_on="code_iris",
@@ -31,6 +37,7 @@ def getIris(revenus: pd.DataFrame) -> gpd.GeoDataFrame:
             how="left"
         )
     
+    # fusion de la base "iris" avec la base "population" (données démographiques des IRIS)
     iris = iris.merge(
         getPopulation(),
         left_on="code_iris",
@@ -38,6 +45,7 @@ def getIris(revenus: pd.DataFrame) -> gpd.GeoDataFrame:
         how="left"
     )
 
+    # choix du système de coordonnées
     iris = iris.to_crs(epsg=4326)
 
     # construire une variable catégorielle du nombre d'habitants par quartier
@@ -74,7 +82,10 @@ def getIris(revenus: pd.DataFrame) -> gpd.GeoDataFrame:
     return iris
 
 def getPopulation() -> pd.DataFrame:
+    # ouverture de la base "population" (données démographiques au niveau des IRIS)
     population = pd.read_csv("data/population.csv", sep=";")
+
+    # simplification du nom des variables : retirer les préfixes communs à (presque) toutes les variables
     population.columns = (
         population.columns
         .str.replace("^P21_", "", regex=True)
@@ -84,7 +95,7 @@ def getPopulation() -> pd.DataFrame:
 
     population["iris"] = population["iris"].astype(str)
 
-    # Ajout des nouvelles colonnes à "population"
+    # Ajout des nouvelles colonnes à "population" qui viennent des métadonnées de population (base "meta")
     population = population.merge(
         getMetaPopulation(),
         left_on="iris",
@@ -141,6 +152,7 @@ def getParcoursup(iris: gpd.GeoDataFrame) -> pd.DataFrame:
     return parcoursup_total
 
 def getMetaPopulation() -> pd.DataFrame:
+    # ouverture de la base "meta", une base associée à la base "population" nécessaire pour fusionner les bases "iris" et "population"
     meta = pd.read_csv("data/meta_population.csv", sep=";")
     # dans la base de données meta, on garde seulement les lignes correspondant à la variable IRIS
     meta = meta[meta["COD_VAR"] == "IRIS"]
@@ -218,6 +230,7 @@ def plotParcoursupMobilitesBoursiers(parcoursup: pd.DataFrame):
     plt.show()
 
 def updateIris(iris: pd.DataFrame, parcoursup_total: pd.DataFrame) -> pd.DataFrame:
+    # Ajouter des données issues de la base "parcoursup_total" à la base "iris"
     # Nombre total de formations par IRIS
     total_form = (
         parcoursup_total.groupby("code_iris")

@@ -27,7 +27,7 @@ def get_iris(revenus: pd.DataFrame) -> gpd.GeoDataFrame:
     iris = gpd.read_file("data/contours-iris-pe.gpkg")
 
     # associer le nom des différents types d'iris selon leur encodage
-    iris["type_iris_label"] = iris["type_iris"].map(column_mapping_iris)
+    iris["type_iris_label"] = iris["type_iris"].map(COLUMN_MAPPING_IRIS)
     
     # fusion de la base "iris" (données géographiques des IRIS) avec la base "revenus"
     iris = iris.merge(
@@ -108,8 +108,8 @@ def get_parcoursup(iris: gpd.GeoDataFrame) -> pd.DataFrame:
     # ouverture du fichier
     parcoursup = pd.read_csv("data/parcoursup.csv", sep=";")
     # changer les noms de colonnes et garder seulement les colonnes utiles
-    parcoursup = parcoursup.rename(columns=column_mapping_parcoursup)
-    parcoursup = parcoursup[columns_to_keep_parcoursup]
+    parcoursup = parcoursup.rename(columns=COLUMN_MAPPING_PARCOURSUP)
+    parcoursup = parcoursup[COLUMNS_TO_KEEP_PARCOURSUP]
 
     # préparation des coordonnées pour faire le merge avec les iris
     parcoursup[['latitude', 'longitude']] = parcoursup['coord_gps'].str.split(',', expand=True)
@@ -123,7 +123,7 @@ def get_parcoursup(iris: gpd.GeoDataFrame) -> pd.DataFrame:
                 geometry=gpd.points_from_xy(parcoursup.longitude, parcoursup.latitude),
                 crs="EPSG:4326"
             ), 
-            iris[columns_to_add_to_parcoursup], 
+            iris[COLUMNS_TO_ADD_TO_PARCOURSUP], 
             how="left",
             predicate="within"
         )
@@ -133,8 +133,8 @@ def get_parcoursup(iris: gpd.GeoDataFrame) -> pd.DataFrame:
     parcoursup_total["part_memeac2"] = parcoursup_total["nb_memeac2"] / parcoursup_total["nb_etud"]
 
     parcoursup_total["part_memeac2_decile"] = pd.qcut(parcoursup_total["part_memeac2"], 
-                                                q=len(Q_list), 
-                                                labels=Q_list)
+                                                q=len(Q_LIST), 
+                                                labels=Q_LIST)
     
     # créer une colonne pour les formations très sélectives
     parcoursup_total["tres_select"] = (parcoursup_total["taux_acces"] < 50).astype(int)
@@ -170,7 +170,7 @@ def get_meta_population() -> pd.DataFrame:
 
 def get_revenus_cah(revenus: pd.DataFrame) -> pd.DataFrame:
     # conserver uniquement les colonnes pertinentes
-    rev_cah = revenus.drop(columns=columns_to_remove_revenus)
+    rev_cah = revenus.drop(columns=COLUMNS_TO_REMOVE_REVENUS)
 
     # imputation des valeurs manquantes
     for col in rev_cah.columns:
@@ -201,15 +201,15 @@ def create_clusters(revenus: pd.DataFrame, cah):
     revenus["cluster"] = fcluster(cah, 5, criterion='maxclust')
 
 def analyze_clusters(revenus: pd.DataFrame) -> pd.DataFrame:
-    summary = revenus.groupby("cluster")[variables_to_analyze_in_clusters].mean()
-    total = revenus[variables_to_analyze_in_clusters].mean()
+    summary = revenus.groupby("cluster")[VARIABLES_TO_ANALYZE_IN_CLUSTERS].mean()
+    total = revenus[VARIABLES_TO_ANALYZE_IN_CLUSTERS].mean()
     summary_with_total = pd.concat([summary, total.to_frame().T], axis=0)
     summary_with_total.index = list(summary.index) + ["Total"]
     return summary_with_total
 
 def rename_clusters(revenus: pd.DataFrame):
     cluster_order = revenus.groupby("cluster")["med"].median().sort_values()
-    mapping = {cluster: clusters_labels[i] for i, cluster in enumerate(cluster_order.index)}
+    mapping = {cluster: CLUSTERS_LABEL[i] for i, cluster in enumerate(cluster_order.index)}
     revenus["cluster_label"] = revenus["cluster"].map(mapping)
 
 def update_iris(iris: pd.DataFrame, parcoursup_total: pd.DataFrame) -> pd.DataFrame:
@@ -411,7 +411,7 @@ def construct_logit_model(
 ) -> pd.DataFrame:
 
     # Sous-ensemble des variables utiles
-    df_model = df[[y] + logit_variable].copy()
+    df_model = df[[y] + LOGIT_VARIABLE].copy()
 
     # Nettoyage
     df_model = df_model.dropna()
@@ -515,7 +515,7 @@ def plot_boursier_quartier(parcoursup_total: pd.DataFrame):
         parcoursup_total
         .groupby("cluster_label")["admis_boursier"]
         .mean()
-        .reindex(ordre_clusters)
+        .reindex(ORDRE_CLUSTERS)
     )
 
     plt.figure(figsize=(8,5))

@@ -1,11 +1,11 @@
-column_mapping_iris = {
+COLUMN_MAPPING_IRIS = {
     "H": "habitat",
     "A": "activité",
     "D": "divers",
     "Z": "autre"
 }
 
-column_mapping_parcoursup = {
+COLUMN_MAPPING_PARCOURSUP = {
     "Statut de l’établissement de la filière de formation (public, privé…)": "secteur",
     "Établissement": "etab",
     "Code départemental de l’établissement": "dep",
@@ -37,7 +37,7 @@ column_mapping_parcoursup = {
     "Taux d’accès": "taux_acces"
 }
 
-columns_to_keep_parcoursup = [
+COLUMNS_TO_KEEP_PARCOURSUP = [
     "secteur", "etab", "dep", "reg", "academie", "commune",
     "filiere_det", "selectivite", "type_form", "filiere",
     "coord_gps", "nb_etud", "nb_cand", "nb_admis",
@@ -46,20 +46,20 @@ columns_to_keep_parcoursup = [
     "nb_memeac", "nb_memeac2", "admis_boursier", "taux_acces"
 ]
 
-columns_to_remove_revenus = ["iris", "tp60", "note", "d2", "d3", "d4", "d6", "d7", "d8"]
+COLUMNS_TO_REMOVE_REVENUS = ["iris", "tp60", "note", "d2", "d3", "d4", "d6", "d7", "d8"]
 
-variables_to_analyze_in_clusters = ["tp60", "med", "q1", "q3", "rd", "gi", "pact", "ptsa", "pcho", "pben", "ppen", "ppat", "ppsoc", "ppmini", "pimpot"]
+VARIABLES_TO_ANALYZE_IN_CLUSTERS = ["tp60", "med", "q1", "q3", "rd", "gi", "pact", "ptsa", "pcho", "pben", "ppen", "ppat", "ppsoc", "ppmini", "pimpot"]
 
-clusters_labels = ["tres_pauvre", "pauvre", "moyen", "riche", "tres_riche"]
+CLUSTERS_LABEL= ["tres_pauvre", "pauvre", "moyen", "riche", "tres_riche"]
 
-columns_to_add_to_parcoursup = ['code_iris', 'nom_iris', 'geometry', 'nom_commune', 'type_iris', 'type_iris_label', "med", "rd", "ppsoc", "cluster_label", "pop", "pop1117", "pop1824", "pop6074", "pop75p", "pop15p_cs3", "pop15p_cs5", "pop15p_cs6", "pop_imm"]
+COLUMNS_TO_ADD_TO_PARCOURSUP = ['code_iris', 'nom_iris', 'geometry', 'nom_commune', 'type_iris', 'type_iris_label', "med", "rd", "ppsoc", "cluster_label", "pop", "pop1117", "pop1824", "pop6074", "pop75p", "pop15p_cs3", "pop15p_cs5", "pop15p_cs6", "pop_imm"]
 
-Q_list = ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10"]
+Q_LIST = ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10"]
 
 NB_FORMATIONS = "formation"
 TRES_SELECT = "tres_select"
 
-legende1 = (
+LEGENDE1 = (
     "Légende :\n"
     "Points rouges : formations\n"
     "IRIS rouges : quartiers très pauvres\n"
@@ -69,7 +69,7 @@ legende1 = (
     "IRIS bleus foncés : quartiers très riches"
 )
 
-legende2 = (
+LEGENDE2 = (
     "Légende :\n"
     "Points rouges clairs : formations non sélectives\n"
     "Points rouges foncés : formations sélectives\n"
@@ -80,7 +80,7 @@ legende2 = (
     "IRIS bleus foncés : quartiers très riches"
 )
 
-legende3 = (
+LEGENDE3 = (
     "Légende :\n"
     "Points rouges foncés : CPGE et Grandes écoles \n"
     "Points verts : BTS\n"
@@ -92,10 +92,10 @@ legende3 = (
     "IRIS bleus foncés : quartiers très riches"
 )
 
-logit_variable = ["pop", "cluster_label", "type_iris_label"]
-logit_terms = ["C(cluster_label, Treatment(reference='moyen'))", "C(type_iris_label, Treatment(reference='habitat'))", "pop"]
+LOGIT_VARIABLE = ["pop", "cluster_label", "type_iris_label"]
+LOGIT_TERMS = ["C(cluster_label, Treatment(reference='moyen'))", "C(type_iris_label, Treatment(reference='habitat'))", "pop"]
 
-ordre_clusters = ["tres_pauvre", "pauvre", "moyen", "riche", "tres_riche"]
+ORDRE_CLUSTERS = ["tres_pauvre", "pauvre", "moyen", "riche", "tres_riche"]
 
-terms_boursier1 = ["C(cluster_label)", "C(selectivite)", "pop"]
-terms_boursier2 = ["C(cluster_label)", "C(selectivite)", "pop", "C(type_form, Treatment(reference='Licence'))"]
+TERMS_BOURSIER1 = ["C(cluster_label)", "C(selectivite)", "pop"]
+TERMS_BOURSIER2 = ["C(cluster_label)", "C(selectivite)", "pop", "C(type_form, Treatment(reference='Licence'))"]

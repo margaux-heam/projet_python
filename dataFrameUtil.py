@@ -82,9 +82,9 @@ legende2 = (
 
 legende3 = (
     "Légende :\n"
-    "Points rouges foncés : CPGE\n"
-    "Points rouges verts : BTS\n"
-    "Points bleus : formations post-bac hors CPGE et BTS \n"
+    "Points rouges foncés : CPGE et Grandes écoles \n"
+    "Points verts : BTS\n"
+    "Points bleus : formations post-bac hors CPGE, Grandes écoles et BTS \n"
     "IRIS rouges : quartiers très pauvres\n"
     "IRIS oranges : quartiers pauvres\n"
     "IRIS jaunes : quartiers moyens\n"

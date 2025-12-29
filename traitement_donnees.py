@@ -11,7 +11,7 @@ from scipy.stats import pearsonr
 from shapely.geometry import Point
 from dataFrameUtil import *
 
-def getRevenus() -> pd.DataFrame:
+def get_revenus() -> pd.DataFrame:
     revenus = pd.read_csv("data/revenus.csv", sep=";")
 
     # simplification du nom des variables : retirer les préfixes et suffixes communs à toutes les variables
@@ -23,7 +23,7 @@ def getRevenus() -> pd.DataFrame:
         )
     return revenus
 
-def getIris(revenus: pd.DataFrame) -> gpd.GeoDataFrame:
+def get_iris(revenus: pd.DataFrame) -> gpd.GeoDataFrame:
     iris = gpd.read_file("data/contours-iris-pe.gpkg")
 
     # associer le nom des différents types d'iris selon leur encodage
@@ -39,7 +39,7 @@ def getIris(revenus: pd.DataFrame) -> gpd.GeoDataFrame:
     
     # fusion de la base "iris" avec la base "population" (données démographiques des IRIS)
     iris = iris.merge(
-        getPopulation(),
+        get_population(),
         left_on="code_iris",
         right_on="COD_MOD",
         how="left"
@@ -81,7 +81,7 @@ def getIris(revenus: pd.DataFrame) -> gpd.GeoDataFrame:
     iris["code_dept"] = iris["code_iris"].str[:2]
     return iris
 
-def getPopulation() -> pd.DataFrame:
+def get_population() -> pd.DataFrame:
     # ouverture de la base "population" (données démographiques au niveau des IRIS)
     population = pd.read_csv("data/population.csv", sep=";")
 
@@ -97,14 +97,14 @@ def getPopulation() -> pd.DataFrame:
 
     # Ajout des nouvelles colonnes à "population" qui viennent des métadonnées de population (base "meta")
     population = population.merge(
-        getMetaPopulation(),
+        get_meta_population(),
         left_on="iris",
         right_on="COD_MOD",
         how="left"
     )
     return population
 
-def getParcoursup(iris: gpd.GeoDataFrame) -> pd.DataFrame:
+def get_parcoursup(iris: gpd.GeoDataFrame) -> pd.DataFrame:
     # ouverture du fichier
     parcoursup = pd.read_csv("data/parcoursup.csv", sep=";")
     # changer les noms de colonnes et garder seulement les colonnes utiles
@@ -151,7 +151,7 @@ def getParcoursup(iris: gpd.GeoDataFrame) -> pd.DataFrame:
     parcoursup_total["type_form_agg"] = np.select(conditions, choices, default="Autre")
     return parcoursup_total
 
-def getMetaPopulation() -> pd.DataFrame:
+def get_meta_population() -> pd.DataFrame:
     # ouverture de la base "meta", une base associée à la base "population" nécessaire pour fusionner les bases "iris" et "population"
     meta = pd.read_csv("data/meta_population.csv", sep=";")
     # dans la base de données meta, on garde seulement les lignes correspondant à la variable IRIS
@@ -168,7 +168,7 @@ def getMetaPopulation() -> pd.DataFrame:
 
     return meta
 
-def getRevenusCah(revenus: pd.DataFrame) -> pd.DataFrame:
+def get_revenus_cah(revenus: pd.DataFrame) -> pd.DataFrame:
     # conserver uniquement les colonnes pertinentes
     rev_cah = revenus.drop(columns=columns_to_remove_revenus)
 
@@ -178,16 +178,16 @@ def getRevenusCah(revenus: pd.DataFrame) -> pd.DataFrame:
     # normalisation des variables
     return StandardScaler().fit_transform(rev_cah)
 
-def doCAH(rev_cah: pd.DataFrame):
+def do_cah(rev_cah: pd.DataFrame):
     return linkage(rev_cah, method='ward')
 
-def plotDendrogramme(cah):
+def plot_dendrogramme(cah):
     plt.figure(figsize=(12, 6))
     dendrogram(cah, truncate_mode="level", p=5)
     plt.title("Dendrogramme CAH")
     plt.show()
 
-def plotCoude(cah):
+def plot_coude(cah):
     last_rev = cah[:, 2][::-1]
     plt.figure(figsize=(10, 5))
     plt.plot(range(1, 16), last_rev[:15], marker='o')
@@ -197,39 +197,22 @@ def plotCoude(cah):
     plt.grid(True)
     plt.show() 
 
-def createClusters(revenus: pd.DataFrame, cah):
+def create_clusters(revenus: pd.DataFrame, cah):
     revenus["cluster"] = fcluster(cah, 5, criterion='maxclust')
 
-def analyzeClusters(revenus: pd.DataFrame) -> pd.DataFrame:
+def analyze_clusters(revenus: pd.DataFrame) -> pd.DataFrame:
     summary = revenus.groupby("cluster")[variables_to_analyze_in_clusters].mean()
     total = revenus[variables_to_analyze_in_clusters].mean()
     summary_with_total = pd.concat([summary, total.to_frame().T], axis=0)
     summary_with_total.index = list(summary.index) + ["Total"]
     return summary_with_total
 
-def renameClusters(revenus: pd.DataFrame):
+def rename_clusters(revenus: pd.DataFrame):
     cluster_order = revenus.groupby("cluster")["med"].median().sort_values()
     mapping = {cluster: clusters_labels[i] for i, cluster in enumerate(cluster_order.index)}
     revenus["cluster_label"] = revenus["cluster"].map(mapping)
 
-def plotParcoursupMobilitesBoursiers(parcoursup: pd.DataFrame):
-    moyennes = (
-        parcoursup
-        .groupby("part_memeac2_decile")["admis_boursier"]
-        .mean()
-    )
-
-    plt.figure(figsize=(8,5))
-    plt.bar(moyennes.index, moyennes.values)
-    plt.ylabel("Taux moyen de boursiers dans la formation")
-    plt.xlabel("Décile de la part d'étudiants venant de la même académie")
-    plt.title("Part moyenne d’admis boursiers de la formation selon la part d'étudiants issus de la même académie")
-    plt.xticks(rotation=30)
-    plt.tight_layout()
-    plt.ylim(0, 35)
-    plt.show()
-
-def updateIris(iris: pd.DataFrame, parcoursup_total: pd.DataFrame) -> pd.DataFrame:
+def update_iris(iris: pd.DataFrame, parcoursup_total: pd.DataFrame) -> pd.DataFrame:
     # Ajouter des données issues de la base "parcoursup_total" à la base "iris"
     # Nombre total de formations par IRIS
     total_form = (
@@ -250,7 +233,24 @@ def updateIris(iris: pd.DataFrame, parcoursup_total: pd.DataFrame) -> pd.DataFra
     iris[TRES_SELECT] = (iris[TRES_SELECT] > 0).astype(int)
     return iris
 
-def printCarteVille(
+def plot_parcoursup_mobilites_boursiers(parcoursup: pd.DataFrame):
+    moyennes = (
+        parcoursup
+        .groupby("part_memeac2_decile")["admis_boursier"]
+        .mean()
+    )
+
+    plt.figure(figsize=(8,5))
+    plt.bar(moyennes.index, moyennes.values)
+    plt.ylabel("Taux moyen de boursiers dans la formation")
+    plt.xlabel("Décile de la part d'étudiants venant de la même académie")
+    plt.title("Part moyenne d’admis boursiers de la formation selon la part d'étudiants issus de la même académie")
+    plt.xticks(rotation=30)
+    plt.tight_layout()
+    plt.ylim(0, 35)
+    plt.show()
+
+def print_carte_ville(
     iris: pd.DataFrame,
     parcoursup_total: pd.DataFrame,
     code_dept: str,
@@ -325,7 +325,7 @@ def printCarteVille(
     return m
 
 
-def printCarteFranceMetropolitaine(iris: pd.DataFrame, parcoursup_total: pd.DataFrame):
+def print_carte_france_metropolitaine(iris: pd.DataFrame, parcoursup_total: pd.DataFrame):
     # Préparer les IRIS – France métropolitaine uniquement
     deps_metro = (
         [f"{i:02d}" for i in range(1, 96)]
@@ -372,7 +372,7 @@ def printCarteFranceMetropolitaine(iris: pd.DataFrame, parcoursup_total: pd.Data
     folium.LayerControl().add_to(m)
     return m
 
-def plotFormationDemographie(
+def plot_formation_demographie(
     iris: pd.DataFrame,
     bin_col: str,
     value_col: str,
@@ -404,7 +404,7 @@ def plotFormationDemographie(
 
     plt.show()
 
-def constructLogitModel(
+def construct_logit_model(
     df: pd.DataFrame,
     y: str,
     terms: list[str]
@@ -429,7 +429,7 @@ def constructLogitModel(
 
     return table
 
-def printCarteVilleSelect(
+def print_carte_ville_select(
     iris: pd.DataFrame,
     parcoursup_total: pd.DataFrame,
     code_depts: list[str],
@@ -510,7 +510,7 @@ def printCarteVilleSelect(
     folium.LayerControl().add_to(m)
     return m
 
-def plotBoursierQuartier(parcoursup_total: pd.DataFrame):
+def plot_boursier_quartier(parcoursup_total: pd.DataFrame):
     moyennes = (
         parcoursup_total
         .groupby("cluster_label")["admis_boursier"]
@@ -528,7 +528,7 @@ def plotBoursierQuartier(parcoursup_total: pd.DataFrame):
     plt.ylim(0, 35)
     plt.show()
 
-def constructModelBoursier(
+def construct_model_boursier(
     df: pd.DataFrame,
     terms: list[str],
     y: str = "admis_boursier"
@@ -537,7 +537,7 @@ def constructModelBoursier(
     model = smf.ols(formula, data=df).fit()
     return model
 
-def printCarteTypeFormation(
+def print_carte_type_formation(
     iris: pd.DataFrame,
     parcoursup_total: pd.DataFrame,
     deps: list[str],

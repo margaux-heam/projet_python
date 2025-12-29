@@ -59,6 +59,39 @@ Q_list = ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10"]
 NB_FORMATIONS = "formation"
 TRES_SELECT = "tres_select"
 
+legende1 = (
+    "Légende :\n"
+    "Points rouges : formations\n"
+    "IRIS rouges : quartiers très pauvres\n"
+    "IRIS oranges : quartiers pauvres\n"
+    "IRIS jaunes : quartiers moyens\n"
+    "IRIS bleus : quartiers riches\n"
+    "IRIS bleus foncés : quartiers très riches"
+)
+
+legende2 = (
+    "Légende :\n"
+    "Points rouges clairs : formations non sélectives\n"
+    "Points rouges foncés : formations sélectives\n"
+    "IRIS rouges : quartiers très pauvres\n"
+    "IRIS oranges : quartiers pauvres\n"
+    "IRIS jaunes : quartiers moyens\n"
+    "IRIS bleus : quartiers riches\n"
+    "IRIS bleus foncés : quartiers très riches"
+)
+
+legende3 = (
+    "Légende :\n"
+    "Points rouges foncés : CPGE\n"
+    "Points rouges verts : BTS\n"
+    "Points bleus : formations post-bac hors CPGE et BTS \n"
+    "IRIS rouges : quartiers très pauvres\n"
+    "IRIS oranges : quartiers pauvres\n"
+    "IRIS jaunes : quartiers moyens\n"
+    "IRIS bleus : quartiers riches\n"
+    "IRIS bleus foncés : quartiers très riches"
+)
+
 logit_variable = ["pop", "cluster_label", "type_iris_label"]
 logit_terms = ["C(cluster_label, Treatment(reference='moyen'))", "C(type_iris_label, Treatment(reference='habitat'))", "pop"]
 

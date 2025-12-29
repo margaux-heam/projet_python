@@ -1,7 +1,7 @@
 # Localisation des formations post-bac et inégalités spatiales d'accès à l'enseigement supérieur
 
 ## Projet Python
-*Par Blanche Choueiry, Margaux Héam et Anna Laherrere.*
+*Par Blanche Choueiry, Margaux Héam et Ana Laherrere.*
 
 # Contextualisation
 
